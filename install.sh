@@ -178,19 +178,31 @@ def extract_entry(source_list, new_cmd):
         h["command"] = new_cmd
     return entry
 
-def is_ip_guard_entry(group, keyword):
-    """兼容旧版（无 _ip_guard 标记）：按标记或脚本名识别"""
-    if group.get("_ip_guard"):
-        return True
-    return any(keyword in h.get("command", "") for h in group.get("hooks", []))
+def is_ip_guard_command(hook, keyword):
+    import shlex
+    try:
+        args = shlex.split(hook.get("command", ""))
+    except ValueError:
+        return False
+    return (hook.get("type") == "command" and len(args) == 2
+            and os.path.basename(args[0]) == "bash"
+            and os.path.basename(args[1]) == keyword + ".sh")
 
 def apply_hook(hook_list, new_entry, keyword, event_name):
-    before = len(hook_list)
-    hook_list[:] = [g for g in hook_list if not is_ip_guard_entry(g, keyword)]
-    removed = before - len(hook_list)
+    retained = []
+    for group in hook_list:
+        commands = group.get("hooks", [])
+        remaining = [h for h in commands if not is_ip_guard_command(h, keyword)]
+        if len(remaining) == len(commands):
+            retained.append(group)
+        elif remaining:
+            group["hooks"] = remaining
+            group.pop("_ip_guard", None)
+            retained.append(group)
+    hook_list[:] = retained
     hook_list.append(new_entry)
     cmd = next((h.get("command","") for h in new_entry.get("hooks",[])), "")
-    print(f"  {event_name}: 删除 {removed} 条旧记录，追加 command=\"{cmd}\"")
+    print(f"  {event_name}: 已更新 command=\"{cmd}\"")
 
 with open(source_path) as f:
     source = json.load(f)

@@ -30,7 +30,7 @@ BLOCKED_COUNTRIES=(
     "AF"  # 阿富汗
     "UA"  # 乌克兰（俄占区：克里米亚、顿涅茨克、赫尔松、卢甘斯克、扎波罗热，脚本无法细分，整国拦截）
 )
-CURL_TIMEOUT=5
+CURL_TIMEOUT=2
 RECHECK_INTERVAL=600  # UserPromptSubmit 缓存有效期（秒）
 HISTORY_DAYS=30       # ip_history 保留天数
 
@@ -146,16 +146,16 @@ query_current_ip() {
     [ -n "$ip" ] && echo "$ip" && return
     log "query_current_ip: 主接口 ipify.org 失败，尝试备用接口"
 
-    # 备用接口：ip-api.com（大陆可达，防 VPN 误切大陆导致主接口不可达）
+    # 备用接口：ipwho.is（HTTPS）
     ip=$(curl -s \
         --max-time        "$CURL_TIMEOUT" \
         --connect-timeout "$CURL_TIMEOUT" \
-        "http://ip-api.com/json/" 2>/dev/null \
-        | $PYTHON -c "import sys,json; d=json.load(sys.stdin); print(d.get('query',''))" 2>/dev/null)
+        "https://ipwho.is/" 2>/dev/null \
+        | $PYTHON -c "import sys,json; d=json.load(sys.stdin); print(d.get('ip','') if d.get('success') else '')" 2>/dev/null)
     if [ -n "$ip" ]; then
         echo "$ip"
     else
-        log "query_current_ip: 备用接口 ip-api.com 失败，无法获取 IP"
+        log "query_current_ip: 备用接口 ipwho.is 失败，无法获取 IP"
     fi
 }
 
@@ -212,11 +212,11 @@ except Exception:
     fi
     log "geo 主接口无效，切换备用接口"
 
-    # ── 备用接口：ip-api.com（HTTP，免费）──
+    # ── 备用接口：ipwho.is（HTTPS）──
     if [ -n "$target" ]; then
-        url="http://ip-api.com/json/${target}"
+        url="https://ipwho.is/${target}"
     else
-        url="http://ip-api.com/json/"
+        url="https://ipwho.is/"
     fi
 
     log "geo 请求备用接口：${url}"
@@ -226,18 +226,18 @@ except Exception:
 import sys, json
 try:
     d = json.load(sys.stdin)
-    ip      = d.get('query', '')
-    country = d.get('countryCode', '')
-    region  = d.get('regionName', '')
+    ip      = d.get('ip', '') if d.get('success') else ''
+    country = d.get('country_code', '')
+    region  = d.get('region', '')
     city    = d.get('city', '')
-    org     = d.get('isp', '')
+    org     = d.get('connection', {}).get('isp', '')
     if ip and country:
         print(f'{ip}|{country}|{region}|{city}|{org}')
 except Exception:
     pass
 " 2>/dev/null)
         if [ -n "$parsed" ]; then
-            log "geo 备用接口响应成功（ip-api.com）"
+            log "geo 备用接口响应成功（ipwho.is）"
             echo "$parsed"
             return 0
         fi
@@ -286,6 +286,7 @@ days     = int(sys.argv[2])
 cutoff   = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
 
 lines = []
+needs_cleanup = False
 try:
     with open(filepath) as f:
         for line in f:
@@ -296,9 +297,14 @@ try:
                 d = json.loads(line)
                 if d.get('time', '')[:10] >= cutoff:
                     lines.append(line)
+                else:
+                    needs_cleanup = True
             except json.JSONDecodeError:
-                pass
+                needs_cleanup = True
 except FileNotFoundError:
+    sys.exit(0)
+
+if not needs_cleanup:
     sys.exit(0)
 
 tmp = filepath + '.tmp'
@@ -432,6 +438,7 @@ process_geo_result() {
     log "COUNTRY=${country} 不在黑名单（direct_ok=true）→ 进入 IP 历史检查"
 
     # ── IP 历史检查 ───────────────────────────────────────────────────────────
+    cleanup_old_history
     if is_ip_in_history "$ip"; then
         log "IP 历史命中：IP=${ip}（已知 IP）"
         # 已知 IP，仅写缓存（历史已有记录，不重复写入）→ exit 0
@@ -445,7 +452,6 @@ process_geo_result() {
         count=$(count_recent_ips)
         count=$((count + 1))
         append_history "$ip" "$country" "$region" "$city" "$org"
-        cleanup_old_history
         if [ "$count" -eq 1 ]; then
             # 第一条 IP：建立基准，直接写缓存放行，无需提醒
             echo "$(date +%s)|${country}|${city}|${ip}" > "$CACHE_FILE"

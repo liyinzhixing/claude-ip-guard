@@ -47,7 +47,7 @@ main() {
     local elapsed=0
     [ -n "$cached_ts" ] && elapsed=$((now - cached_ts))
 
-    if [ "$current_ip" = "$cached_ip" ] && [ -n "$cached_ts" ] && [ "$elapsed" -lt "$RECHECK_INTERVAL" ]; then
+    if [ "$current_ip" = "$cached_ip" ] && [ -n "$cached_ts" ] && [ "$elapsed" -ge 0 ] && [ "$elapsed" -lt "$RECHECK_INTERVAL" ]; then
         log "IP 未变（${current_ip}），缓存有效（${elapsed}s < ${RECHECK_INTERVAL}s），放行"
         exit 0
     fi
@@ -65,7 +65,7 @@ main() {
     run_direct_test
     local direct_ok="$DIRECT_OK"
 
-    # ── 7. Geo 查询（ipinfo.io 主 → ip-api.com 备）────────────────────────────
+    # ── 7. Geo 查询（ipinfo.io 主 → ipwho.is 备）────────────────────────────
     log "发起 geo 查询：IP=${current_ip}"
     local geo_result
     geo_result=$(query_geo "$current_ip")

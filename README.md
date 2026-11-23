@@ -26,7 +26,7 @@
 **全局安装**（推荐，对本机所有项目生效）：
 
 ```bash
-git clone https://github.com/cso1z/claude-ip-guard.git
+git clone https://github.com/liyinzhixing/claude-ip-guard.git
 bash claude-ip-guard/install.sh
 ```
 
@@ -122,7 +122,7 @@ cat ~/.cache/claude-ip-guard/ip-guard-$(date '+%Y-%m-%d').log
 
 **Q：会影响 Claude Code 的响应速度吗？**
 
-每次 prompt 先做轻量 IP 比对，命中缓存（IP 相同且 < 10 分钟）直接放行，无网络请求。仅 IP 变化或缓存过期时才发起地理位置查询，正常使用几乎无感知。
+每次提交都会联网查询当前公网 IP。IP 相同且缓存未满 10 分钟时直接放行，因此缓存期间不会发现同一 IP 新出现的 HTTP 403。IP 变化或缓存过期后会重新探测 Anthropic 和地理位置。每次网络请求最多等待 2 秒，单次提交最多发出 5 次请求。
 
 **Q：我使用第三方代理（如中转 API），会被误拦吗？**
 
@@ -168,7 +168,7 @@ cat ~/.cache/claude-ip-guard/ip-guard-$(date '+%Y-%m-%d').log
 | `api.anthropic.com` | 直连检测（主判断门） | HTTPS |
 | `api.ipify.org` | 轻量 IP 查询（主，每次 prompt） | HTTPS |
 | `ipinfo.io` | 完整地理查询（主） | HTTPS |
-| `ip-api.com` | 轻量 IP 查询（备）/ 完整地理查询（备） | HTTP |
+| `ipwho.is` | 轻量 IP 查询（备）/ 完整地理查询（备） | HTTPS |
 
 ## License
 

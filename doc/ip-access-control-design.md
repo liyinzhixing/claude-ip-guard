@@ -56,12 +56,12 @@ flowchart TD
         CACHE -->|否| D
     end
 
-    GEO[Geo 查询 ipinfo.io 主 ip-api.com 备] -->|失败| X5([exit 0 fail-safe 放行])
+    GEO[Geo 查询 ipinfo.io 主 ipwho.is 备] -->|失败| X5([exit 0 fail-safe 放行])
     GEO -->|成功| N{IP 在禁用区?}
     N -->|是| X7([exit 2 硬拦截\n直连不通且 IP 在禁用区])
     N -->|否| X8([exit 0 直连失败但非禁用区\nfail-safe 放行])
 
-    GEO_DIRECT_OK[Geo 查询 ipinfo.io 主 ip-api.com 备] -->|失败| X5b([exit 0 fail-safe 放行])
+    GEO_DIRECT_OK[Geo 查询 ipinfo.io 主 ipwho.is 备] -->|失败| X5b([exit 0 fail-safe 放行])
     GEO_DIRECT_OK -->|成功| R{IP 在禁用区?}
     R -->|是| X9([exit 0 分流代理场景\n不拦截 不写缓存/历史])
     R -->|否| K{IP 在历史中?}
@@ -143,7 +143,7 @@ flowchart TD
 ### 最终选型
 
 - **轻量查询**（UserPromptSubmit 缓存比对）：`https://api.ipify.org?format=json`
-- **完整地理查询**（IP 变化或缓存过期时）：`https://ipinfo.io/json`（主），`http://ip-api.com/json/`（备）
+- **完整地理查询**（IP 变化或缓存过期时）：`https://ipinfo.io/json`（主），`https://ipwho.is/`（备）
 
 ---
 

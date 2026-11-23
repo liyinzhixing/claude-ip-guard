@@ -19,7 +19,7 @@ main() {
     run_direct_test
     local direct_ok="$DIRECT_OK"
 
-    # ── 3. Geo 查询（ipinfo.io 主 → ip-api.com 备）────────────────────────────
+    # ── 3. Geo 查询（ipinfo.io 主 → ipwho.is 备）────────────────────────────
     local geo_result
     geo_result=$(query_geo)
 
